@@ -1,0 +1,1 @@
+   Spec number      Gamma        A_Fe             log_xi            kTe              Dens             Incl               ratio

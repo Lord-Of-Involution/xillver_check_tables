@@ -1,16 +1,59 @@
 !-----------------------------------------------------------------
-      subroutine read_rownum(unit, rowmax)
+      subroutine get_parameters(unit, rowmax, par_names, num_of_val_par)
+      implicit none
+      integer  , intent(IN)  :: unit, rowmax
+      integer  , intent(OUT) :: num_of_val_par(rowmax)
+      character (len=12), intent(OUT) :: par_names(rowmax)
+
+      character (len=10) :: ciao
+      logical            :: anynul
+      character (len=30) :: hdu_name 
+      integer :: status,  chdu, hdutype, colnum, rownum, felem, nelem, i
+
+! Initialize status
+      status    = 0
+!Let's move in the correct HDU (with the name in hdu_name)       
+      hdu_name = 'PARAMETERS'
+      call hdu_move(unit,hdu_name,status)
+      call ftghdn(unit,chdu)
+      
+!Read the energies
+      felem  = 1
+      nelem  = 1
+      
+      do i = 1, rowmax
+          
+         colnum = 1
+         rownum = i
+         ! call ftgcvs(unit, colnum, rownum, felem, nelem, 0.0,&
+         !      par_names(i), anynul, status)
+         ! if (status .gt. 0) call printerror(status)
+         ! write(*,*) 'in routine', par_names(i)
+         
+         colnum = 9
+         call ftgcvj(unit, colnum, rownum, felem, nelem, 0.0,&
+              num_of_val_par(i), anynul, status)
+         if (status .gt. 0) call printerror(status)
+
+      enddo
+      
+      return
+    end subroutine get_parameters
+!-----------------------------------------------------------------
+
+!-----------------------------------------------------------------
+      subroutine get_rownum(unit, hdu_name, rowmax)
       implicit none
       integer           :: unit, rowmax
+      character (len=30), intent(IN) :: hdu_name 
 
       logical           :: anynul
-      character (len=30):: hdu_name 
       integer           :: status,  chdu,  hdutype, colnum, felem
       integer           :: nrow
 ! Initialize status
       status    = 0
 !Let's move in the correct HDU (with the name in hdu_name)       
-      hdu_name = 'SPECTRA'
+      ! hdu_name = 'SPECTRA'
       call hdu_move(unit, hdu_name, status)
       if (status .gt. 0) call printerror(status)
       call ftghdn(unit, chdu)
@@ -28,15 +71,17 @@
 
 
       return
-    end subroutine read_rownum
+    end subroutine get_rownum
 !-----------------------------------------------------------------
-      
-!-----------------------------------------------------------------
-      subroutine read_spec(unit, rownum, spec_dim, spec)
-      implicit none
-      integer           :: unit, rownum, spec_dim
-      double precision  :: spec(spec_dim)
 
+    
+!-----------------------------------------------------------------
+    !This routine reads in the xillver table and save the energy spectrum and the associated parameter values  
+    subroutine get_par_and_spec(unit, rownum, par_dim, par_val, spec_dim, spec)
+      implicit none
+      integer, INTENT(IN)  :: unit, rownum, par_dim, spec_dim
+      real   , INTENT(OUT) :: par_val(par_dim), spec(spec_dim)
+      
       logical           :: anynul
       character (len=30):: hdu_name 
       integer :: status,  chdu, hdutype, colnum, felem
@@ -50,15 +95,62 @@
       
 ! Read in the function 
       felem  = 1
+      colnum = 1
+      call ftgcve(unit, colnum, rownum, felem, par_dim, 0.0,&
+          par_val, anynul, status)
+      if (status .gt. 0) call printerror(status)
+
       colnum = 2
       call ftgcve(unit, colnum, rownum, felem, spec_dim, 0.0,&
           spec, anynul, status)
       if (status .gt. 0) call printerror(status)
 
       return
-    end subroutine read_spec
+    end subroutine get_par_and_spec
 !-----------------------------------------------------------------
       
+!-----------------------------------------------------------------
+    !This routine reads in the xillver table and save the energy grid
+    ! in particular the ene_lo and ene_hi which are the low and high energy edges of each energy bin 
+    subroutine get_energy(unit, spec_dim, ene_lo, ene_hi)
+      implicit none
+      integer           :: unit, rownum, spec_dim
+      real              :: ene_lo(spec_dim), ene_hi(spec_dim)
+
+      logical           :: anynul
+      character (len=30):: hdu_name 
+      integer :: status,  chdu, hdutype, colnum, felem, nelem, i
+      
+! Initialize status
+      status    = 0
+!Let's move in the correct HDU (with the name in hdu_name)       
+      hdu_name = 'ENERGIES'
+      call hdu_move(unit,hdu_name,status)
+      call ftghdn(unit,chdu)
+      
+!Read the energies
+      felem  = 1
+      nelem  = 1
+      do i = 1, spec_dim
+          
+         colnum = 1
+         rownum = i
+         call ftgcve(unit, colnum, rownum, felem, nelem, 0.0,&
+              ene_lo(i), anynul, status)
+         if (status .gt. 0) call printerror(status)
+
+         colnum = 2
+         call ftgcve(unit, colnum, rownum, felem, nelem, 0.0,&
+              ene_hi(i), anynul, status)
+         if (status .gt. 0) call printerror(status)
+
+         ! write(*,*) ene_hi(i) , ene_lo(i)
+
+      enddo
+      
+      return
+    end subroutine get_energy
+!-----------------------------------------------------------------
       
 !------------------------------------------------------------------
     subroutine open_fits(filename, unit)
